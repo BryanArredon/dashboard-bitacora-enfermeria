@@ -25,6 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <script src="https://cdn.jsdelivr.net/npm/drkmd-js/dist/drkmd-js.min.js" data-drkmd-attach></script>
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground`}>
         <ThemeProvider
           attribute="class"
