@@ -4,28 +4,26 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   
-  /* Primary brand colors */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-900: #1e3a8a;
+  /* Primary brand colors - Vibrant Azure / Electric Blue */
+  --color-primary-50: #eff6ff; /* blue-50 */
+  --color-primary-100: #dbeafe; /* blue-100 */
+  --color-primary-500: #3b82f6; /* blue-500 - Muy vivo y eléctrico */
+  --color-primary-600: #2563eb; /* blue-600 */
+  --color-primary-700: #1d4ed8; /* blue-700 */
+  --color-primary-900: #1e3a8a; /* blue-900 */
   
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 :root {
-  --background: #f8fafc;
+  --background: #f8fafc; /* Un gris muy tenue azulado, casi blanco puro, muy fresco */
   --foreground: #0f172a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #020617; /* Very deep slate/blue for a premium dark feel */
-    --foreground: #f8fafc;
-  }
+:is(.dark) {
+  --background: #020617; /* Very deep slate/blue for a premium dark feel */
+  --foreground: #f8fafc;
 }
 
 body {
@@ -39,10 +37,15 @@ body {
 /* Custom Utilities for premium glassmorphism */
 @layer utilities {
   .glass-panel {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] rounded-3xl;
+    @apply bg-slate-50/80 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-sm dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] rounded-3xl;
   }
   
   .glass-input {
-    @apply bg-white/5 border border-white/10 focus:border-primary-500/50 focus:bg-white/10 transition-all duration-300 outline-none text-foreground placeholder:text-foreground/40;
+    @apply bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 focus:border-primary-500 dark:focus:border-primary-500/50 focus:bg-white/80 dark:focus:bg-white/10 transition-all duration-300 outline-none text-slate-900 dark:text-foreground placeholder:text-slate-500 dark:placeholder:text-foreground/40;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-500 text-white font-medium px-4 py-2 rounded-xl transition-all duration-300 shadow-md hover:shadow-lg active:scale-[0.98];
   }
 }
+
