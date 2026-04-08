@@ -4,6 +4,231 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
+// Apartado para el login de la aplicación
+// Definimos el tipo de respuesta que esperamos del backend Java
+interface AuthResponse {
+  userId?: string
+  correo?: string
+  token?: string
+  mensaje?: string
+  requiresMfa?: boolean
+  tempUserId?: string
+  mfaMethods?: ('email' | 'totp')[]
+}
+
+export async function loginUsuario(prevState: unknown, formData: FormData) {
+  // Se obtienen los datos del usuario desde el formulario
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+
+  if (!email || !password) {
+    return { error: 'Correo y contraseña son obligatorios' }
+  }
+
+  // Se llama al auth-service para validar las credenciales
+  const backendUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8085'
+
+  try {
+    const response = await fetch(`${backendUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correo: email, password }),
+    })
+
+    const data: AuthResponse = await response.json()
+
+    if (!response.ok) {
+      return { error: data.mensaje || 'Correo o contraseña incorrectos' }
+    }
+
+    if (data.requiresMfa === true && data.tempUserId) {
+      const cookieStore = await cookies()
+      // Guardar tempUserId en cookie (expira en 10 minutos)
+      cookieStore.set('tempUserId', data.tempUserId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 10, // 10 minutos
+        path: '/',
+      })
+      // Redirigir a la página de verificación de código
+      redirect('/verify-code')
+    }
+
+    // Login exitoso sin MFA (token directo)
+    const token = data.token
+    if (!token) {
+      return { error: 'El servidor no devolvió un token válido' }
+    }
+
+    const cookieStore = await cookies()
+    cookieStore.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24, // 1 día
+      path: '/',
+    })
+
+    redirect('/')
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error
+    }
+    console.error('Error en loginUsuario:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Error interno del servidor'
+    return { error: errorMessage }
+  }
+}
+
+// Función para cerrar sesión
+export async function logoutUsuario() {
+  const cookieStore = await cookies()
+  cookieStore.delete('token')
+  redirect('/login')
+}
+
+// Función para verificar el código MFA
+export async function verifyMfa(prevState: unknown, formData: FormData) {
+  const otp = formData.get('otp') as string
+
+  if (!otp || otp.length !== 6) {
+    return { error: 'Debes ingresar un código de 6 dígitos' }
+  }
+
+  const cookieStore = await cookies()
+  const tempUserId = cookieStore.get('tempUserId')?.value
+
+  if (!tempUserId) {
+    return { error: 'Sesión expirada o inválida. Por favor, inicia sesión nuevamente.' }
+  }
+
+  const backendUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8085'
+
+  try {
+    const response = await fetch(`${backendUrl}/api/auth/verify-mfa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tempUserId, otp }),
+    })
+
+    const data: AuthResponse = await response.json()
+
+    if (!response.ok) {
+      return { error: data.mensaje || 'Código incorrecto o expirado' }
+    }
+
+    const token = data.token
+    if (!token) {
+      return { error: 'El servidor no devolvió un token válido' }
+    }
+
+    // Guardar token definitivo
+    cookieStore.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24,
+      path: '/',
+    })
+
+    // Limpiar cookie temporal
+    cookieStore.delete('tempUserId')
+
+    redirect('/')
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error
+    }
+    console.error('Error en verifyMfa:', error)
+    return { error: 'Error interno del servidor' }
+  }
+}
+
+// Función para obtener secret y QR
+export async function setupTotp(email: string) {
+  const backendUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8085'
+  const res = await fetch(`${backendUrl}/api/auth/mfa/setup-totp/${email}`, {
+    method: 'GET',
+  })
+  if (!res.ok) throw new Error('Error al configurar TOTP')
+  return res.json() // { secret, qrCodeUrl, mensaje }
+}
+
+// Función para habilitar TOTP
+export async function enableTotp(email: string, otp: string) {
+  const backendUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8085'
+  const res = await fetch(`${backendUrl}/api/auth/mfa/enable-totp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ correo: email, otp }),
+  })
+  if (!res.ok) {
+    const data = await res.json()
+    throw new Error(data.mensaje || 'Error al habilitar TOTP')
+  }
+  return { success: true }
+}
+
+// Función para verificar el código TOTP durante el login
+export async function verifyTotp(prevState: unknown, formData: FormData) {
+  const otp = formData.get('otp') as string
+
+  if (!otp || otp.length !== 6) {
+    return { error: 'Debes ingresar un código de 6 dígitos' }
+  }
+
+  const cookieStore = await cookies()
+  const tempUserId = cookieStore.get('tempUserId')?.value
+
+  if (!tempUserId) {
+    return { error: 'Sesión expirada o inválida. Por favor, inicia sesión nuevamente.' }
+  }
+
+  const backendUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8085'
+
+  try {
+    // Endpoint para verificar TOTP (ajusta la ruta según tu backend)
+    const response = await fetch(`${backendUrl}/api/auth/verify-totp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tempUserId, otp }),
+    })
+
+    const data: AuthResponse = await response.json()
+
+    if (!response.ok) {
+      return { error: data.mensaje || 'Código TOTP incorrecto o expirado' }
+    }
+
+    const token = data.token
+    if (!token) {
+      return { error: 'El servidor no devolvió un token válido' }
+    }
+
+    // Guardar token definitivo
+    cookieStore.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24,
+      path: '/',
+    })
+
+    // Limpiar cookie temporal
+    cookieStore.delete('tempUserId')
+
+    redirect('/')
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error
+    }
+    console.error('Error en verifyTotp:', error)
+    return { error: 'Error interno del servidor' }
+  }
+}
+
+// Apartado para la gestión de bitácoras médicas
 type NivelUrgencia = 'Estable' | 'Observación' | 'Crítico'
 
 type BitacoraEntry = {
@@ -67,32 +292,4 @@ export async function guardarBitacora(prevState: any, formData: FormData) {
   // Refresca la vista
   revalidatePath('/')
   return { success: true }
-}
-
-
-export async function loginUsuario(formData: FormData) {
-  const email = formData.get('email')
-  const password = formData.get('password')
-
-  if (!email || !password) {
-    throw new Error('Por favor, ingresa correo y contraseña')
-  }
-
-  // Set the dummy cookie (simulating session token)
-  const cookieStore = await cookies()
-  cookieStore.set('auth-token', 'dummy-token-' + Date.now(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7, // 1 week
-    path: '/'
-  })
-
-  // Redirect to dashboard (home)
-  redirect('/')
-}
-
-export async function logoutUsuario() {
-  const cookieStore = await cookies()
-  cookieStore.delete('auth-token')
-  redirect('/login')
 }

@@ -6,7 +6,7 @@ import CheckList from '@/components/CheckList'
 
 export default async function DashboardHome() {
   const cookieStore = await cookies()
-  const token = cookieStore.get('auth-token')
+  const token = cookieStore.get('token')
 
   if (!token) {
     redirect('/login')
