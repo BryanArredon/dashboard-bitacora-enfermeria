@@ -6,7 +6,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
   // Rutas públicas que no requieren autenticación
-  const publicPaths = ['/login', '/verify-code', '/reset-password', '/auth-user']
+  const publicPaths = ['/login', '/verify-code', '/reset-password', '/google-authenticator']
   const isPublicPath = publicPaths.includes(pathname)
 
   // Si no está autenticado y la ruta no es pública

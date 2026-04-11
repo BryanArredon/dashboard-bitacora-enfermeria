@@ -9,7 +9,7 @@ import { revalidatePath } from 'next/cache'
 interface AuthResponse {
   userId?: string
   correo?: string
-  token?: string
+  accessToken?: string
   mensaje?: string
   requiresMfa?: boolean
   tempUserId?: string
@@ -51,12 +51,19 @@ export async function loginUsuario(prevState: unknown, formData: FormData) {
         maxAge: 60 * 10, // 10 minutos
         path: '/',
       })
+      cookieStore.set('mfaEmail', email, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 10,
+        path: '/',
+      })
       // Redirigir a la página de verificación de código
       redirect('/verify-code')
     }
 
     // Login exitoso sin MFA (token directo)
-    const token = data.token
+    const token = data.accessToken
     if (!token) {
       return { error: 'El servidor no devolvió un token válido' }
     }
@@ -118,7 +125,7 @@ export async function verifyMfa(prevState: unknown, formData: FormData) {
       return { error: data.mensaje || 'Código incorrecto o expirado' }
     }
 
-    const token = data.token
+    const token = data.accessToken
     if (!token) {
       return { error: 'El servidor no devolvió un token válido' }
     }
@@ -171,42 +178,70 @@ export async function enableTotp(email: string, otp: string) {
 }
 
 // Función para verificar el código TOTP durante el login
-export async function verifyTotp(prevState: unknown, formData: FormData) {
-  const otp = formData.get('otp') as string
+export async function verificarCodigoAuthenticator(prevState: unknown, formData: FormData) {
+  const codigo = formData.get('codigo') as string
 
-  if (!otp || otp.length !== 6) {
+  if (!codigo || codigo.length !== 6) {
     return { error: 'Debes ingresar un código de 6 dígitos' }
   }
 
   const cookieStore = await cookies()
   const tempUserId = cookieStore.get('tempUserId')?.value
+  const email = cookieStore.get('mfaEmail')?.value
 
-  if (!tempUserId) {
-    return { error: 'Sesión expirada o inválida. Por favor, inicia sesión nuevamente.' }
+  if (!tempUserId || !email) {
+    return { error: 'Sesión expirada. Por favor, inicia sesión nuevamente.' }
   }
 
   const backendUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:8085'
 
+  // Intentar activar TOTP (por si es la primera vez)
   try {
-    // Endpoint para verificar TOTP (ajusta la ruta según tu backend)
-    const response = await fetch(`${backendUrl}/api/auth/verify-totp`, {
+    const enableRes = await fetch(`${backendUrl}/api/auth/mfa/enable-totp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tempUserId, otp }),
+      body: JSON.stringify({ correo: email, code: codigo }),
     })
 
-    const data: AuthResponse = await response.json()
+    if (enableRes.ok) {
+      const data: AuthResponse = await enableRes.json()
+      const token = data.accessToken
+      if (token) {
+        cookieStore.set('token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 60 * 60 * 24,
+          path: '/',
+        })
+        cookieStore.delete('tempUserId')
+        cookieStore.delete('mfaEmail')
+        redirect('/')
+      }
+    }
+    // Si falla, continuamos con el siguiente intento (puede ser que ya esté activo)
+  } catch {
+    console.log('enable-totp falló, intentando verify-mfa...')
+  }
 
-    if (!response.ok) {
-      return { error: data.mensaje || 'Código TOTP incorrecto o expirado' }
+  try {
+    const verifyRes = await fetch(`${backendUrl}/api/auth/verify-mfa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tempUserId, otp: codigo }),
+    })
+
+    const data: AuthResponse = await verifyRes.json()
+
+    if (!verifyRes.ok) {
+      return { error: data.mensaje || 'Código incorrecto o expirado' }
     }
 
-    const token = data.token
+    const token = data.accessToken
     if (!token) {
       return { error: 'El servidor no devolvió un token válido' }
     }
 
-    // Guardar token definitivo
     cookieStore.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -215,15 +250,12 @@ export async function verifyTotp(prevState: unknown, formData: FormData) {
       path: '/',
     })
 
-    // Limpiar cookie temporal
     cookieStore.delete('tempUserId')
-
+    cookieStore.delete('mfaEmail')
     redirect('/')
   } catch (error) {
-    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
-      throw error
-    }
-    console.error('Error en verifyTotp:', error)
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') throw error
+    console.error('Error en verify-mfa:', error)
     return { error: 'Error interno del servidor' }
   }
 }

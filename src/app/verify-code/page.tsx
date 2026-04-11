@@ -1,14 +1,14 @@
 'use client'
 
 import { useActionState, useRef, useState, useEffect } from 'react'
-import { verifyMfa } from '../actions'
+import { verificarCodigoAuthenticator } from '../actions'
 
 const initialState = {
   error: '',
 }
 
 export default function VerifyCodePage() {
-  const [state, formAction, isPending] = useActionState(verifyMfa, initialState)
+  const [state, formAction, isPending] = useActionState(verificarCodigoAuthenticator, initialState)
   const [digits, setDigits] = useState(['', '', '', '', '', ''])
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const [timeLeft, setTimeLeft] = useState(300) // 5 minutos
@@ -129,7 +129,7 @@ export default function VerifyCodePage() {
           </div>
 
           <div className="text-center">
-            <a href="/auth-user" className="text-sm text-primary-600 dark:text-primary-400 hover:underline transition-colors">
+            <a href="/google-authenticator" className="text-sm text-primary-600 dark:text-primary-400 hover:underline transition-colors">
               Probar otro método
             </a>
           </div>
