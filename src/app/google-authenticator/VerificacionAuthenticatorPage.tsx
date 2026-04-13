@@ -12,6 +12,7 @@ export default function VerificacionAuthenticatorPage({ email }: { email: string
   const [digits, setDigits] = useState(['', '', '', '', '', ''])
   const [qrDataUri, setQrDataUri] = useState<string | null>(null)
   const [loadingQr, setLoadingQr] = useState(true)
+  const [isAlreadyConfigured, setIsAlreadyConfigured] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const router = useRouter()
 
@@ -20,7 +21,10 @@ export default function VerificacionAuthenticatorPage({ email }: { email: string
     if (!email) return
     setupTotp(email)
       .then((data) => setQrDataUri(data.qrDataUri))
-      .catch((err) => console.error('Error al obtener QR:', err))
+      .catch((err) => {
+        setIsAlreadyConfigured(true)
+        console.error('Error al obtener QR (posiblemente ya configurado):', err)
+      })
       .finally(() => setLoadingQr(false))
   }, [email])
 
@@ -58,7 +62,8 @@ export default function VerificacionAuthenticatorPage({ email }: { email: string
 
       <div className="w-full max-w-3xl glass-panel z-10 m-4 overflow-hidden">
         <div className="flex flex-col md:flex-row">
-          {/* Columna izquierda: QR */}
+          {/* Columna izquierda: QR (solo si no está configurado) */}
+          {!isAlreadyConfigured && (
           <div className="flex flex-col items-center justify-center gap-6 p-8 md:w-[45%] border-b md:border-b-0 md:border-r border-slate-200/60 dark:border-slate-700/60">
             <div className="text-center">
               <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/50 rounded-2xl mx-auto flex items-center justify-center mb-4">
@@ -109,9 +114,10 @@ export default function VerificacionAuthenticatorPage({ email }: { email: string
               )}
             </div>
           </div>
+          )}
 
           {/* Columna derecha: Formulario */}
-          <div className="flex flex-col justify-center p-8 md:w-[55%]">
+          <div className={`flex flex-col justify-center p-8 ${isAlreadyConfigured ? 'w-full max-w-lg mx-auto' : 'md:w-[55%]'}`}>
             <div className="mb-8">
               <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-blue-600 dark:from-primary-400 dark:to-blue-400">
                 Verificación

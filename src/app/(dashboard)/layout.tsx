@@ -1,19 +1,26 @@
 import Sidebar from '@/components/Sidebar'
 import Topbar from '@/components/Topbar'
+import { getSession, hasRole } from '@/lib/auth'
+import { fetchMyModules, fetchMyProfile } from '@/app/actions'
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await getSession()
+  const isAdmin = await hasRole('ADMIN')
+  const modules = await fetchMyModules()
+  const profile = await fetchMyProfile()
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#020617]">
       {/* Sidebar fijo a la izquierda */}
-      <Sidebar />
+      <Sidebar modules={modules} />
       
       {/* Contenedor principal derecho */}
       <div className="flex flex-col flex-1 overflow-hidden relative">
-        <Topbar />
+        <Topbar profile={profile} />
         
         {/* Decorative Blur Backgrounds for the Data Area */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-500/10 dark:bg-primary-500/5 rounded-full blur-[120px] pointer-events-none" />

@@ -1,8 +1,9 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { obtenerBitacoras } from '../actions'
+import { obtenerBitacoras, obtenerPacientes, obtenerPerfiles } from '../actions'
 import BitacoraForm from '@/components/BitacoraForm'
 import CheckList from '@/components/CheckList'
+import DeleteBitacoraButton from '@/components/DeleteBitacoraButton'
 
 export default async function DashboardHome() {
   const cookieStore = await cookies()
@@ -13,6 +14,8 @@ export default async function DashboardHome() {
   }
 
   const registros = await obtenerBitacoras()
+  const pacientes = await obtenerPacientes()
+  const perfiles = await obtenerPerfiles()
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -22,10 +25,10 @@ export default async function DashboardHome() {
         <div className="glass-panel p-5 relative overflow-hidden group">
           <div className="absolute right-0 top-0 h-full w-24 bg-gradient-to-l from-primary-500/10 to-transparent pointer-events-none" />
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Pacientes Activos</p>
-          <p className="text-3xl font-bold mt-2 text-slate-800 dark:text-slate-100">42</p>
+          <p className="text-3xl font-bold mt-2 text-slate-800 dark:text-slate-100">{pacientes.length}</p>
           <div className="mt-2 flex items-center text-xs text-green-500 font-medium">
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-            +12% vs turno anterior
+            Actualizado hoy
           </div>
         </div>
         
@@ -44,7 +47,7 @@ export default async function DashboardHome() {
         <div className="glass-panel p-5 relative overflow-hidden">
           <div className="absolute right-0 top-0 h-full w-24 bg-gradient-to-l from-blue-500/10 to-transparent pointer-events-none" />
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Personal en Turno</p>
-          <p className="text-3xl font-bold mt-2 text-slate-800 dark:text-slate-100">12</p>
+          <p className="text-3xl font-bold mt-2 text-slate-800 dark:text-slate-100">{perfiles.length}</p>
         </div>
       </div>
 
@@ -65,7 +68,7 @@ export default async function DashboardHome() {
               <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Nueva Captura Rápida
             </h3>
-            <BitacoraForm />
+            <BitacoraForm pacientes={pacientes} perfiles={perfiles} />
           </div>
 
           {/* Data Table */}
@@ -83,7 +86,8 @@ export default async function DashboardHome() {
                     <th className="px-5 py-4 border-b border-slate-200 dark:border-white/5">Cama</th>
                     <th className="px-5 py-4 border-b border-slate-200 dark:border-white/5">Estado</th>
                     <th className="px-5 py-4 border-b border-slate-200 dark:border-white/5">Vitales Principales</th>
-                    <th className="px-5 py-4 border-b border-slate-200 dark:border-white/5 text-right">Tiempo</th>
+                    <th className="px-5 py-4 border-b border-slate-200 dark:border-white/5 text-center">Tiempo</th>
+                    <th className="px-5 py-4 border-b border-slate-200 dark:border-white/5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-white/5 text-sm">
@@ -122,8 +126,11 @@ export default async function DashboardHome() {
                         <td className="px-5 py-4 text-slate-600 dark:text-slate-400 truncate max-w-[200px]" title={registro.signosVitales}>
                           {registro.signosVitales.split(',')[0]} {/* Mostrar solo el primer signo para evitar desbordar */}
                         </td>
-                        <td className="px-5 py-4 whitespace-nowrap text-right text-xs text-slate-400 dark:text-slate-500">
+                        <td className="px-5 py-4 whitespace-nowrap text-center text-xs text-slate-400 dark:text-slate-500">
                           {registro.fechaStr}
+                        </td>
+                        <td className="px-5 py-4 whitespace-nowrap text-right">
+                          <DeleteBitacoraButton id={registro.id} />
                         </td>
                       </tr>
                     ))

@@ -1,7 +1,11 @@
 import { ThemeToggle } from "./ThemeToggle"
-import { logoutUsuario } from "../app/actions"
+import { logoutUsuario, UserProfile } from "../app/actions"
 
-export default function Topbar() {
+export default function Topbar({ profile }: { profile: UserProfile | null }) {
+  const nombreMostrado = profile?.nombre ? `${profile.nombre} ${profile.apellidos}` : 'Usuario'
+  const iniciales = profile?.nombre ? `${profile.nombre[0]}${profile.apellidos?.[0] || ''}`.toUpperCase() : 'U'
+  const cargo = profile?.especialidad || 'Personal de Salud'
+
   return (
     <header className="h-20 glass-panel border-b border-transparent rounded-none shadow-none border-slate-200 dark:border-white/5 bg-white/60 dark:bg-slate-900/40 sticky top-0 z-10 flex items-center justify-between px-6 md:px-8">
       
@@ -30,11 +34,11 @@ export default function Topbar() {
         {/* Profile Dropdown Simulation */}
         <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-white/10">
           <div className="hidden sm:block text-right">
-            <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-tight">Enfermera Titular</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Jornada 7:00 - 15:00</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-tight">{nombreMostrado}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{cargo}</p>
           </div>
           <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-500 to-blue-500 text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-white dark:ring-[#020617]">
-            ET
+            {iniciales}
           </div>
           <form action={logoutUsuario}>
             <button type="submit" className="ml-2 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" title="Cerrar sesión">

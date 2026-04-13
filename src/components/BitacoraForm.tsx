@@ -3,7 +3,12 @@
 import { useActionState } from 'react'
 import { guardarBitacora } from '../app/actions'
 
-export default function BitacoraForm() {
+interface BitacoraFormProps {
+  pacientes: any[]
+  perfiles: any[]
+}
+
+export default function BitacoraForm({ pacientes, perfiles }: BitacoraFormProps) {
   // En Next 15/React 19, usamos useActionState en lugar de useFormState
   const [state, formAction, isPending] = useActionState(guardarBitacora, null)
 
@@ -24,34 +29,59 @@ export default function BitacoraForm() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Paciente</label>
-          <input 
-            type="text" 
-            name="paciente"
+          <select 
+            name="paciente_id"
             required
-            placeholder="Ej. González, A."
-            className="w-full px-3 py-2 text-sm rounded-lg glass-input"
-          />
+            className="w-full px-3 py-2 text-sm rounded-lg glass-input bg-transparent"
+          >
+            <option value="" disabled selected>Selecciona un paciente</option>
+            {pacientes.map((p) => (
+              <option key={p.id} value={p.id} className="text-slate-800">
+                {p.nombre_completo} {p.numero_cama ? `(Cama ${p.numero_cama})` : ''}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Cama #</label>
-          <input 
-            type="text" 
-            name="cama"
+          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Enfermero(a)</label>
+          <select 
+            name="enfermero_id"
             required
-            placeholder="Ej. 102"
-            className="w-full px-3 py-2 text-sm rounded-lg glass-input"
-          />
+            className="w-full px-3 py-2 text-sm rounded-lg glass-input bg-transparent"
+          >
+            <option value="" disabled selected>Enfermero(a) a cargo</option>
+            {perfiles.map((p) => (
+              <option key={p.id} value={p.id} className="text-slate-800">
+                {p.nombre_completo}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Signos Vitales</label>
-        <input 
-          type="text" 
-          name="signosVitales"
-          placeholder="Ej. TA 120/80, Temp 37°C"
-          className="w-full px-3 py-2 text-sm rounded-lg glass-input"
-        />
+        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 block mb-1">Signos Vitales</label>
+        <div className="grid grid-cols-3 gap-3">
+          <input 
+            type="text" 
+            name="presionArterial"
+            placeholder="TA (ej. 120/80)"
+            className="w-full px-3 py-2 text-sm rounded-lg glass-input"
+          />
+          <input 
+            type="number" 
+            step="0.1"
+            name="temperatura"
+            placeholder="Temp (°C)"
+            className="w-full px-3 py-2 text-sm rounded-lg glass-input"
+          />
+          <input 
+            type="number" 
+            name="frecuenciaCardiaca"
+            placeholder="FC (bpm)"
+            className="w-full px-3 py-2 text-sm rounded-lg glass-input"
+          />
+        </div>
       </div>
 
       <div className="space-y-1">
@@ -59,25 +89,26 @@ export default function BitacoraForm() {
         <textarea 
           name="notas"
           rows={3}
+          required
           placeholder="Medicamentos administrados, observaciones..."
           className="w-full px-3 py-2 text-sm rounded-lg glass-input resize-none"
         ></textarea>
       </div>
 
       <div className="space-y-2 pb-2">
-        <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Nivel de Urgencia</label>
+        <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Turno</label>
         <div className="flex flex-wrap gap-3">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="urgencia" value="Estable" className="accent-green-500 w-4 h-4" defaultChecked />
-            <span className="text-sm text-slate-700 dark:text-slate-300">Estable</span>
+            <input type="radio" name="turno" value="matutino" className="accent-blue-500 w-4 h-4" defaultChecked />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Matutino</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="urgencia" value="Observación" className="accent-amber-500 w-4 h-4" />
-            <span className="text-sm text-slate-700 dark:text-slate-300">Observación</span>
+            <input type="radio" name="turno" value="vespertino" className="accent-amber-500 w-4 h-4" />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Vespertino</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="urgencia" value="Crítico" className="accent-red-500 w-4 h-4" />
-            <span className="text-sm text-slate-700 dark:text-slate-300">Crítico</span>
+            <input type="radio" name="turno" value="nocturno" className="accent-indigo-500 w-4 h-4" />
+            <span className="text-sm text-slate-700 dark:text-slate-300">Nocturno</span>
           </label>
         </div>
       </div>
